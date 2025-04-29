@@ -40,6 +40,22 @@ async def create_user(
             detail="Internal server error"
         )
 
+@userRoute.get("/", response_model=List[UserOut])
+async def get_users(
+    skip: int = 0,
+    limit: int = 100,
+    service: UserService = Depends(get_user_service),
+    current_user_id: int = Depends(get_current_user)
+):
+    try:
+        users = service.get_users(skip=skip, limit=limit)
+        return users
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching users"
+        )
+
 @userRoute.get("/{user_id}", response_model=UserOut)
 async def read_user(
     user_id: int,
@@ -54,6 +70,23 @@ async def read_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+@userRoute.get("/by-email/{email}", response_model=UserOut)
+async def get_user_by_email(
+    email: str,
+    service: UserService = Depends(get_user_service),
+    current_user_id: int = Depends(get_current_user)
+):
+    try:
+        user = service.get_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error fetching user"
+        )
 
 @userRoute.put("/{user_id}", response_model=UserOut)
 async def update_user(

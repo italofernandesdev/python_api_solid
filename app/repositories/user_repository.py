@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.security import get_password_hash
+from typing import Optional
 
 
 class UserRepository:
@@ -14,7 +15,7 @@ class UserRepository:
     def get_user_by_username(self, username: str) -> User | None:
         return self.db.query(User).filter(User.username == username).first()
 
-    def get_user_by_email(self, email: str) -> User | None:
+    def get_user_by_email(self, email: str) -> Optional[User]:
         return self.db.query(User).filter(User.email == email).first()
 
     def get_users(self, skip: int = 0, limit: int = 100) -> list[User]:
