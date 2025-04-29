@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import timedelta
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.schemas.user import UserCreate, UserUpdate, UserOut
 from app.services.user_service import UserService
 from app.repositories.user_repository import UserRepository
 from app.db.database import get_db
+from app.core.security import (
+    get_current_user,
+    verify_password,
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -13,7 +21,7 @@ def get_user_service(db: Session = Depends(get_db)):
     return UserService(UserRepository(db))
 
 @router.post("/", response_model=UserOut)
-def create_user(
+async def create_user(
     user: UserCreate,
     service: UserService = Depends(get_user_service)
 ):
@@ -26,22 +34,60 @@ def create_user(
         print("Error creating user:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/{user_id}", response_model=UserOut)
+async def read_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user_id: int = Depends(get_current_user)
+):
+    # Verify requesting user matches user_id or has admin rights
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    user = service.get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
 @router.put("/{user_id}", response_model=UserOut)
-def update_user(
+async def update_user(
     user_id: int,
     user: UserUpdate,
-    service: UserService = Depends(get_user_service)
+    service: UserService = Depends(get_user_service),
+    current_user_id: int = Depends(get_current_user)
 ):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
     updated_user = service.update_user(user_id, user)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")
     return updated_user
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
+async def delete_user(
     user_id: int,
-    service: UserService = Depends(get_user_service)
+    service: UserService = Depends(get_user_service),
+    current_user_id: int = Depends(get_current_user)
 ):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
     if not service.delete_user(user_id):
         raise HTTPException(status_code=404, detail="User not found")
     return None
+
+@router.post("/login")
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    service: UserService = Depends(get_user_service)
+):
+    user = service.get_user_by_username(form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
