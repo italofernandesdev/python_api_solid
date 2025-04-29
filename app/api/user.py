@@ -15,12 +15,12 @@ from app.core.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
-router = APIRouter(prefix="/users", tags=["users"])
+userRoute = APIRouter(prefix="/users", tags=["users"])
 
 def get_user_service(db: Session = Depends(get_db)):
     return UserService(UserRepository(db))
 
-@router.post("/", response_model=UserOut)
+@userRoute.post("/", response_model=UserOut)
 async def create_user(
     user: UserCreate,
     service: UserService = Depends(get_user_service)
@@ -34,7 +34,7 @@ async def create_user(
         print("Error creating user:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{user_id}", response_model=UserOut)
+@userRoute.get("/{user_id}", response_model=UserOut)
 async def read_user(
     user_id: int,
     service: UserService = Depends(get_user_service),
@@ -49,7 +49,7 @@ async def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.put("/{user_id}", response_model=UserOut)
+@userRoute.put("/{user_id}", response_model=UserOut)
 async def update_user(
     user_id: int,
     user: UserUpdate,
@@ -64,7 +64,7 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     return updated_user
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@userRoute.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
     service: UserService = Depends(get_user_service),
@@ -77,7 +77,7 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     return None
 
-@router.post("/login")
+@userRoute.post("/login")
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: UserService = Depends(get_user_service)
