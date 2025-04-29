@@ -99,4 +99,4 @@ async def login(
         return {"access_token": access_token, "token_type": "bearer"}
     except Exception as e:
         print("Login error:", str(e))
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
+        raise HTTPException(status_code=500, detail="Internal server error")
