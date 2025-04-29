@@ -30,9 +30,15 @@ async def create_user(
         result = service.create_user(user)
         print("User created successfully")
         return result
+    except HTTPException:
+        # Re-raise HTTPExceptions with their original status codes
+        raise
     except Exception as e:
         print("Error creating user:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
 
 @userRoute.get("/{user_id}", response_model=UserOut)
 async def read_user(
@@ -83,6 +89,9 @@ async def login(
     service: UserService = Depends(get_user_service)
 ):
     try:
+        if not form_data.username or not form_data.password:
+            raise HTTPException(status_code=400, detail="Username and password are required")
+
         user = service.get_user_by_username(form_data.username)
         if not user:
             print(f"User not found: {form_data.username}")
@@ -97,6 +106,12 @@ async def login(
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
         return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        # Re-raise HTTPExceptions with their original status codes
+        raise
     except Exception as e:
         print("Login error:", str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
