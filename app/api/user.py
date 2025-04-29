@@ -82,12 +82,21 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: UserService = Depends(get_user_service)
 ):
-    user = service.get_user_by_username(form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    
-    access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        user = service.get_user_by_username(form_data.username)
+        if not user:
+            print(f"User not found: {form_data.username}")
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
+            
+        if not verify_password(form_data.password, user.hashed_password):
+            print("Invalid password for user:", form_data.username)
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
+        
+        access_token = create_access_token(
+            data={"sub": str(user.id)},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        print("Login error:", str(e))
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
